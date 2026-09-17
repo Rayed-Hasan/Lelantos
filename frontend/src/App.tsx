@@ -34,7 +34,7 @@ function App() {
         message: input,
         chat_history: messages.map(m => ({
           role: m.role,
-          content: m.content
+          content: [{ text: m.content }]
         })),
         guardrail_enabled: guardrailEnabled
       })

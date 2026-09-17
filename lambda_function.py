@@ -6,6 +6,7 @@ bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table('AgentMemoryCache')
 
+
 def invoke_bedrock(model_id, system_prompt, messages, max_tokens=1024):
     """Invoke Claude via Bedrock with proper error handling"""
     body = json.dumps({
@@ -30,6 +31,7 @@ def invoke_bedrock(model_id, system_prompt, messages, max_tokens=1024):
         print(f"Bedrock invocation failed: {str(e)}")
         raise
 
+
 def get_user_memory(user_id):
     """Retrieve compressed memory from DynamoDB"""
     try:
@@ -38,6 +40,7 @@ def get_user_memory(user_id):
     except Exception as e:
         print(f"DynamoDB read failed: {str(e)}")
         return []
+
 
 def update_user_memory(user_id, new_constraints):
     """Append new constraints to user's memory profile"""
@@ -57,6 +60,7 @@ def update_user_memory(user_id, new_constraints):
         print(f"DynamoDB write failed: {str(e)}")
         return current
 
+
 def lambda_handler(event, context):
     """Main orchestrator Lambda function"""
     user_id = event.get('user_id', 'default')
@@ -73,8 +77,8 @@ def lambda_handler(event, context):
         memory_injection = "\n\n[CRITICAL USER CONSTRAINTS - NEVER VIOLATE]:\n" + \
                           "\n".join([f"- {c}" for c in memory_constraints])
     
-    # Worker Agent conversation
-    worker_messages = chat_history + [{"role": "user", "content": user_message}]
+    # Worker Agent conversation (FIXED: nested content format)
+    worker_messages = chat_history + [{"role": "user", "content": [{"text": user_message}]}]
     worker_system = f"""You are a helpful AI assistant. Be concise and accurate.{memory_injection}"""
     
     worker_response = invoke_bedrock(
@@ -98,7 +102,7 @@ def lambda_handler(event, context):
         Output JSON array only: [{"fact": "string", "priority": "high|medium"}]
         If nothing new to extract, output []."""
         
-        recent_turns = chat_history[-5:] + [{"role": "assistant", "content": worker_response}]
+        recent_turns = chat_history[-5:] + [{"role": "assistant", "content": [{"text": worker_response}]}]
         supervisor_thoughts = invoke_bedrock(
             "anthropic.claude-3-5-sonnet-20241022-v2:0",
             supervisor_system,
