@@ -4,9 +4,9 @@ import boto3
 import json
 import os
 
-app = FastAPI(title="Mnemosyne API")
+app = FastAPI(title="Lelantos API")
 
-# Enable CORS for Lovable.dev or localhost
+# Enable CORS for frontend clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://lovable.dev", "http://localhost:3000", "*"],
@@ -16,14 +16,15 @@ app.add_middleware(
 )
 
 # Initialize Lambda client
-lambda_client = boto3.client('lambda', region_name='us-east-1')
+lambda_client = boto3.client('lambda', region_name=os.getenv('AWS_REGION', 'us-east-1'))
+LAMBDA_FUNCTION_NAME = os.getenv('LAMBDA_FUNCTION_NAME', 'LelantosOrchestrator')
 
 @app.post("/chat")
 async def chat(payload: dict):
     """Forward chat to Lambda orchestrator"""
     try:
         response = lambda_client.invoke(
-            FunctionName='MnemosyneOrchestrator',
+            FunctionName=LAMBDA_FUNCTION_NAME,
             Payload=json.dumps(payload)
         )
         result = json.loads(response['Payload'].read())
@@ -34,11 +35,11 @@ async def chat(payload: dict):
 @app.get("/memory/{user_id}")
 async def get_memory(user_id: str):
     """Direct memory inspection endpoint"""
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    dynamodb = boto3.resource('dynamodb', region_name=os.getenv('AWS_REGION', 'us-east-1'))
     table = dynamodb.Table('AgentMemoryCache')
     response = table.get_item(Key={'user_id': user_id})
     return response.get('Item', {})
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "mnemosyne-backend"}
+    return {"status": "ok", "service": "lelantos-backend"}

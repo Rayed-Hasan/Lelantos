@@ -70,7 +70,7 @@ function App() {
         <div className="p-4 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-              Mnemosyne Chat
+              Lelantos Chat
             </h1>
             <p className="text-xs text-zinc-400">LLM Memory Guardrail Playground</p>
           </div>

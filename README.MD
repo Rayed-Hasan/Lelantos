@@ -1,6 +1,6 @@
-# Mnemosyne: LLM Memory Guardrail
+# Lelantos: LLM Memory Guardrail
 
-A lightweight, production-ready memory guardrail architecture for LLM agents. Mnemosyne prevents contextual drift, enforces persistent hard constraints across conversational turns, and inspects supervisor reasoning in real-time.
+A lightweight, production-ready memory guardrail architecture for LLM agents. Lelantos prevents contextual drift, enforces persistent hard constraints across conversational turns, and inspects supervisor reasoning in real-time.
 
 ## Architecture Overview
 
@@ -56,4 +56,5 @@ Set the following environment variables if deploying or testing against AWS dire
 - `AWS_REGION`: AWS Region (e.g. `us-east-1`)
 - `AWS_ACCESS_KEY_ID`: AWS Access Key ID
 - `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
+- `LAMBDA_FUNCTION_NAME`: Lambda Function Name (defaults to `LelantosOrchestrator`)
 - `VITE_API_URL`: Backend API endpoint (defaults to `http://localhost:8000`)
