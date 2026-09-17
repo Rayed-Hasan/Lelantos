@@ -259,6 +259,17 @@ aws dynamodb get-item \
 
 ---
 
+## 📝 Thursday to Sunday: Solo Developer Learning Log (Criteria 03)
+
+As a solo contestant, I am responsible for the entire life cycle of Lelantos—from cloud infrastructure and backend logic to the frontend user experience. This log tracks my daily engineering hurdles, growth, and breakthroughs.
+
+### 🗓️ Thursday: Solo Infrastructure Setup & Authentication
+* **The Hurdle:** Entering this hackathon with zero practical AWS experience, my first roadblock was overcoming the steep learning curve of cloud identity access management, secure local credential handling, and model provisioning under a strict deadline.
+* **The Learning:** I mastered the AWS CLI configuration environment (`aws configure`), decoded how IAM user policies grant granular permissions using administrative access overrides, and navigated the Amazon Bedrock console to request and provision foundation model access for Anthropic Claude 3.5 Sonnet.
+* **The Breakthrough:** Successfully initiated my first local runtime connection to the cloud. I verified that my machine could securely authenticate and exchange raw payloads with the Amazon Bedrock Converse API using `boto3`, establishing my core backend pipeline before writing a single line of client-side code.
+
+---
+
 ## 📄 License
 
 MIT License — Built for **Bharat Builds Tour by WeMakeDevs** 2026
