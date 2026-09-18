@@ -13,13 +13,13 @@ export default defineConfig({
   vite: {
     server: {
       proxy: {
-        '/api': {
-          target: 'http://127.0.0.1:8000', // Redirects API routing straight to your local FastAPI server
+        "/api": {
+          target: "http://127.0.0.1:8000", // Redirects API routing straight to your local FastAPI server
           changeOrigin: true,
           secure: false,
+          rewrite: (path: string) => path.replace(/^\/api/, ""),
         },
       },
     },
   },
 });
-

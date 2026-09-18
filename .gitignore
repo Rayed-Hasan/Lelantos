@@ -68,3 +68,10 @@ AGENTS.md
 # Internal design notes / PRDs
 PRD.md
 project_architecture.md
+
+# Local agent configuration and planning files
+.claude/
+.codex/
+CLAUDE.md
+LELANTOS_MASTER_PLAN.md
+graphify-out/
