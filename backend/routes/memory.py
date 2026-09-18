@@ -32,12 +32,21 @@ async def create_memory_endpoint(request: Request):
     """Create a new memory manually."""
     user = get_current_user(request)
     user_id = user["user_id"]
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed JSON in request body")
+
+    raw_type = body.get("type", "FACT")
+    try:
+        mem_type = MemoryType(raw_type.upper() if isinstance(raw_type, str) else raw_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid memory type: {raw_type}")
 
     try:
         memory = MemoryObject(
             user_id=user_id,
-            type=MemoryType(body.get("type", "FACT")),
+            type=mem_type,
             key=body.get("key", "other"),
             value=body.get("value", ""),
             confidence=float(body.get("confidence", 0.9)),
@@ -45,6 +54,8 @@ async def create_memory_endpoint(request: Request):
         )
         created = create_memory(memory)
         return {"status": "created", "memory": created.model_dump()}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to create memory: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -89,7 +100,10 @@ async def query_memories(request: Request):
     """Query for relevant memories based on a query string."""
     user = get_current_user(request)
     user_id = user["user_id"]
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed JSON in request body")
 
     query = body.get("query", "")
     if not query:
@@ -121,7 +135,10 @@ async def extract_memories_endpoint(request: Request):
     """Manually trigger memory extraction from text."""
     user = get_current_user(request)
     user_id = user["user_id"]
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed JSON in request body")
 
     text = body.get("text", "")
     if not text:
@@ -186,12 +203,19 @@ async def update_memory_endpoint(memory_id: str, request: Request):
     """Update a memory's value, status, or confidence."""
     user = get_current_user(request)
     user_id = user["user_id"]
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed JSON in request body")
 
     try:
         status_val = None
         if "status" in body:
-            status_val = MemoryStatus(body["status"])
+            raw_status = body["status"]
+            try:
+                status_val = MemoryStatus(raw_status.upper() if isinstance(raw_status, str) else raw_status)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Invalid memory status: {raw_status}")
 
         updated = update_memory(
             user_id=user_id,

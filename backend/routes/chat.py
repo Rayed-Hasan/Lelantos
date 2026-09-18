@@ -44,7 +44,11 @@ async def chat(request: Request):
     user = get_current_user(request)
     user_id = user["user_id"]
 
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed JSON in request body")
+
     message = body.get("message", "").strip()
     conversation_id = body.get("conversation_id")
 
