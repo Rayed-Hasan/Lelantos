@@ -14,21 +14,24 @@ import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#08090b] px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-zinc-200">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-zinc-300">Page not found</h2>
-        <p className="mt-2 text-sm text-zinc-500">
-          The page you're looking for doesn't exist or has been moved.
+    <div className="relative flex min-h-screen items-center justify-center bg-black px-4 font-mono">
+      <div className="relative max-w-md border border-zinc-800 bg-[#09090b] p-8 text-center shadow-2xl">
+        <div className="absolute -top-1.5 -left-1.5 h-3 w-3 border-t-2 border-l-2 border-zinc-500" />
+        <div className="absolute -top-1.5 -right-1.5 h-3 w-3 border-t-2 border-r-2 border-zinc-500" />
+        <div className="absolute -bottom-1.5 -left-1.5 h-3 w-3 border-b-2 border-l-2 border-zinc-500" />
+        <div className="absolute -bottom-1.5 -right-1.5 h-3 w-3 border-b-2 border-r-2 border-zinc-500" />
+
+        <div className="mb-2 font-pixel text-4xl font-bold tracking-wider text-white">404</div>
+        <div className="mb-2 text-xs uppercase tracking-widest text-zinc-400">Context Node Not Found</div>
+        <p className="mb-6 text-xs text-zinc-600">
+          The requested coordinate or memory route does not exist in the guardian index.
         </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
-          >
-            Go home
-          </Link>
-        </div>
+        <Link
+          to="/"
+          className="inline-flex items-center justify-center border border-zinc-700 bg-zinc-900 px-5 py-2.5 text-xs font-semibold tracking-wider text-zinc-200 uppercase transition-all hover:border-zinc-500 hover:bg-zinc-800 hover:text-white"
+        >
+          [ Return To Base ]
+        </Link>
       </div>
     </div>
   );
@@ -39,29 +42,32 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#08090b] px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-200">
-          Something went wrong
-        </h1>
-        <p className="mt-2 text-sm text-zinc-500">
-          An error occurred. You can try refreshing or head back home.
+    <div className="relative flex min-h-screen items-center justify-center bg-black px-4 font-mono">
+      <div className="relative max-w-md border border-zinc-800 bg-[#09090b] p-8 text-center shadow-2xl">
+        <div className="absolute -top-1.5 -left-1.5 h-3 w-3 border-t-2 border-l-2 border-zinc-500" />
+        <div className="absolute -top-1.5 -right-1.5 h-3 w-3 border-t-2 border-r-2 border-zinc-500" />
+        <div className="absolute -bottom-1.5 -left-1.5 h-3 w-3 border-b-2 border-l-2 border-zinc-500" />
+        <div className="absolute -bottom-1.5 -right-1.5 h-3 w-3 border-b-2 border-r-2 border-zinc-500" />
+
+        <div className="mb-2 font-pixel text-2xl font-bold text-red-400">SYSTEM EXCEPTION</div>
+        <p className="mb-6 text-xs text-zinc-500">
+          An unexpected interruption occurred within the context pipeline.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-3">
           <button
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
+            className="border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-medium text-zinc-200 uppercase transition-colors hover:bg-zinc-800"
           >
-            Try again
+            Retry Pipeline
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800"
+            className="border border-zinc-800 bg-black px-4 py-2 text-xs font-medium text-zinc-400 uppercase transition-colors hover:text-zinc-200"
           >
-            Go home
+            Home
           </a>
         </div>
       </div>
@@ -107,9 +113,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
         {
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Pixelify+Sans:wght@400;500;600;700&display=swap",
         },
-        { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+        { rel: "icon", href: "/lelantos-logo.jpg", type: "image/jpeg" },
       ],
     }),
     shellComponent: RootShell,

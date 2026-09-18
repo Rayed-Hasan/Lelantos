@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { LelantosLogo } from "./logo";
 
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -36,44 +37,61 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#08090b] text-zinc-300">
+    <div className="flex h-screen overflow-hidden bg-black text-zinc-300">
       {/* Sidebar */}
       <aside
-        className={`flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-300 ${collapsed ? "w-16" : "w-60"}`}
+        className={`flex flex-col border-r border-zinc-800/80 bg-[#09090b] transition-all duration-200 ${
+          collapsed ? "w-16" : "w-64"
+        }`}
       >
-        {/* Logo */}
-        <div className="flex h-14 items-center gap-3 border-b border-zinc-800/60 px-4">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-400">
-            <Cpu className="h-4 w-4" />
-          </div>
+        {/* Logo / Guardian Brand */}
+        <Link
+          to="/dashboard"
+          className="flex h-16 items-center gap-3 border-b border-zinc-800/80 px-4 transition-colors hover:bg-zinc-900/40"
+        >
+          <LelantosLogo size="md" />
           {!collapsed && (
             <div className="min-w-0">
-              <div className="text-sm font-semibold tracking-wide text-zinc-100">
-                LELANTOS
+              <div className="flex items-center gap-1.5">
+                <span className="font-pixel text-xs font-bold tracking-widest text-white">LELANTOS</span>
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
-              <div className="font-mono text-[9px] text-zinc-600">
-                PORTABLE CONTEXT LAYER
+              <div className="font-mono text-[9px] uppercase tracking-wider text-zinc-500">
+                Context Guardian
               </div>
             </div>
           )}
-        </div>
+        </Link>
+
+        {/* System Telemetry Banner */}
+        {!collapsed && (
+          <div className="border-b border-zinc-800/60 bg-black/40 px-4 py-2 font-mono text-[10px] text-zinc-500 flex items-center justify-between">
+            <span className="tracking-wider text-zinc-400">SYS.STATUS</span>
+            <span className="text-emerald-400 font-semibold flex items-center gap-1">
+              [ACTIVE]
+            </span>
+          </div>
+        )}
 
         {/* Nav Items */}
         <nav className="flex-1 space-y-1 p-2 pt-3">
           {NAV_ITEMS.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
             const Icon = item.icon;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+                className={`group relative flex items-center gap-3 px-3 py-2.5 text-xs font-mono tracking-wide transition-all ${
                   isActive
-                    ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                    : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300 border border-transparent"
+                    ? "border border-zinc-700 bg-zinc-900/90 text-white font-semibold"
+                    : "border border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900/40 hover:text-zinc-200"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                {isActive && (
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                )}
+                <Icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"}`} />
                 {!collapsed && <span>{item.label}</span>}
               </Link>
             );
@@ -81,34 +99,34 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Collapse toggle */}
-        <div className="border-t border-zinc-800/60 p-2">
+        <div className="border-t border-zinc-800/80 p-2">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs text-zinc-600 hover:bg-zinc-900 hover:text-zinc-400 transition-colors"
+            className="flex w-full items-center justify-center gap-2 border border-transparent px-3 py-2 font-mono text-[11px] text-zinc-500 transition-colors hover:border-zinc-800 hover:bg-zinc-900/50 hover:text-zinc-300"
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />
             ) : (
               <>
                 <ChevronLeft className="h-4 w-4" />
-                <span>Collapse</span>
+                <span>[ COLLAPSE NAV ]</span>
               </>
             )}
           </button>
         </div>
 
         {/* User & Logout */}
-        <div className="border-t border-zinc-800/60 p-3">
+        <div className="border-t border-zinc-800/80 bg-zinc-950 p-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-400">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-zinc-800 bg-zinc-900 font-mono text-xs font-bold text-zinc-300">
               {user?.name?.charAt(0)?.toUpperCase() || "U"}
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-medium text-zinc-300">
+                <div className="truncate text-xs font-semibold text-zinc-200">
                   {user?.name}
                 </div>
-                <div className="truncate text-[10px] text-zinc-600">
+                <div className="truncate font-mono text-[10px] text-zinc-500">
                   {user?.email}
                 </div>
               </div>
@@ -116,7 +134,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {!collapsed && (
               <button
                 onClick={logout}
-                className="shrink-0 rounded p-1.5 text-zinc-600 hover:bg-zinc-800 hover:text-zinc-400 transition-colors"
+                className="shrink-0 border border-transparent p-1.5 text-zinc-500 transition-colors hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-200"
                 title="Logout"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -127,7 +145,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main className="flex-1 overflow-y-auto bg-black">{children}</main>
     </div>
   );
 }
