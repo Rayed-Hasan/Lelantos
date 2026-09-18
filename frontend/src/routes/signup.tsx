@@ -1,0 +1,123 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { Brain, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+
+export const Route = createFileRoute("/signup")({
+  head: () => ({
+    meta: [
+      { title: "Sign Up — Lelantos" },
+      { name: "description", content: "Create your Lelantos account." },
+    ],
+  }),
+  component: SignupPage,
+});
+
+function SignupPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const { signup, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    try {
+      await signup(name, email, password);
+      navigate({ to: "/dashboard" });
+    } catch (err: any) {
+      setError(err.message || "Signup failed");
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#08090b] px-4">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-1/3 h-[500px] w-[600px] -translate-x-1/2 rounded-full bg-violet-500/[0.03] blur-[120px]" />
+      </div>
+
+      <div className="relative w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-indigo-500/30 bg-indigo-500/10">
+            <Brain className="h-6 w-6 text-indigo-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">Create your account</h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            Start building your portable AI context
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="signup-name" className="mb-1.5 block text-xs font-medium text-zinc-400">
+              Name
+            </label>
+            <input
+              id="signup-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-700 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="signup-email" className="mb-1.5 block text-xs font-medium text-zinc-400">
+              Email
+            </label>
+            <input
+              id="signup-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-700 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="signup-password" className="mb-1.5 block text-xs font-medium text-zinc-400">
+              Password
+            </label>
+            <input
+              id="signup-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-700 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white transition-all hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Create Account
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-zinc-600">
+          Already have an account?{" "}
+          <Link to="/login" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+}
