@@ -69,7 +69,7 @@ def retrieve_relevant_memories(
 
     # Return top N with non-zero relevance, or all if few memories
     if len(active_memories) <= limit:
-        return active_memories
+        return [m for m, s in scored if s > 0]
 
     relevant = [m for m, s in scored if s > 0][:limit]
 
@@ -135,7 +135,7 @@ def _compute_relevance_score(memory: MemoryObject, query: str) -> float:
             break
 
     # Check if memory value appears in query
-    if memory.value.lower() in query_lower:
+    if query_lower in memory.value.lower():
         score += 0.3
 
     # Check if memory key appears in query

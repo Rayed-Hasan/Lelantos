@@ -8,6 +8,9 @@ Modular backend with route imports, CORS, health endpoint, and env-based config.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=True)
 import logging
 
 # Configure logging
