@@ -20,6 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
+  confirmSignup: (email: string, code: string) => Promise<void>;
   logout: () => void;
   getAccessToken: () => Promise<string | null>;
 }
@@ -148,6 +149,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
+  const confirmSignup = async (email: string, code: string) => {
+  const cognitoUser = new CognitoUser({
+    Username: email,
+    Pool: pool,
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    cognitoUser.confirmRegistration(code, true, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+};
 
   const logout = () => {
     const cognitoUser = pool.getCurrentUser();
@@ -172,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         signup,
+        confirmSignup,
         logout,
         getAccessToken,
       }}

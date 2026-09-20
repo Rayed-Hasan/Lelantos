@@ -18,8 +18,10 @@ export function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmationCode, setConfirmationCode] = useState("");
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [error, setError] = useState("");
-  const { signup, isLoading } = useAuth();
+  const { signup, confirmSignup, isLoading} = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +29,7 @@ export function SignupPage() {
     setError("");
     try {
       await signup(name, email, password);
-      navigate({ to: "/dashboard" });
+      setNeedsConfirmation(true);
     } catch (err: any) {
       setError(err.message || "Vault initialization failed");
     }
@@ -60,11 +62,57 @@ export function SignupPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
+          {needsConfirmation ? (
+  <>
+    <div>
+      <label
+        htmlFor="confirmation-code"
+        className="mb-1.5 block text-[11px] uppercase tracking-wider text-zinc-400"
+      >
+        VERIFICATION CODE
+      </label>
+
+      <p className="mb-2 text-[10px] leading-relaxed text-zinc-600">
+  Verification email sent. If you don't see it, check your spam or junk folder.
+</p>
+
+      <input
+        id="confirmation-code"
+        type="text"
+        value={confirmationCode}
+        onChange={(e) => setConfirmationCode(e.target.value)}
+        placeholder="Enter the code sent to your email"
+        className="w-full border border-zinc-800 bg-black px-4 py-2.5 text-xs text-white placeholder:text-zinc-700 outline-none focus:border-white transition-colors"
+        required
+      />
+    </div>
+
+    <button
+      type="button"
+      disabled={isLoading}
+      onClick={async () => {
+        setError("");
+
+        try {
+          await confirmSignup(email, confirmationCode);
+          navigate({ to: "/login" });
+        } catch (err: any) {
+          setError(err.message || "Verification failed");
+        }
+      }}
+      className="w-full flex items-center justify-center gap-2 border border-white bg-white py-3 text-xs font-bold text-black transition-all hover:bg-zinc-200 disabled:opacity-50"
+    >
+      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+      VERIFY EMAIL
+    </button>
+  </>
+) : (
+  <>
+          {error ? (
             <div className="border border-red-500/40 bg-red-950/20 p-3 text-xs text-red-300 font-sans">
               {error}
             </div>
-          )}
+          ) : null}
 
           <div>
             <label htmlFor="signup-name" className="mb-1.5 block text-[11px] uppercase tracking-wider text-zinc-400">
@@ -109,6 +157,9 @@ export function SignupPage() {
               className="w-full border border-zinc-800 bg-black px-4 py-2.5 text-xs text-white placeholder:text-zinc-700 outline-none focus:border-white transition-colors"
               required
             />
+            <p className="mt-2 text-[10px] leading-relaxed text-zinc-600">
+              Minimum 8 characters • 1 uppercase • 1 lowercase • 1 number • 1 special character
+            </p>
           </div>
 
           <button
@@ -120,6 +171,8 @@ export function SignupPage() {
             <span>INITIALIZE VAULT</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
+        </>
+  )}
         </form>
 
         <div className="mt-8 border-t border-zinc-800/80 pt-4 text-center text-xs text-zinc-500 font-sans">
