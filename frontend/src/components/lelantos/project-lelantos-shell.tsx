@@ -4,8 +4,9 @@ import { Switch } from "@/components/ui/switch";
 import { ChatPanel } from "./chat-panel";
 import { StateDeck } from "./state-deck";
 import type { ChatMessage, SupervisorLog } from "./lelantos-data";
-
+import { useAuth } from "@/lib/auth-context";
 export function ProjectLelantosShell() {
+  const { user, getAccessToken } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState<string>("");
   const [guardrailEnabled, setGuardrailEnabled] = useState<boolean>(true);
@@ -29,7 +30,7 @@ export function ProjectLelantosShell() {
     },
   ]);
   const [rawSupervisorThoughts, setRawSupervisorThoughts] = useState<string>("");
-  const [userId] = useState<string>("rayed_solo_hacker_test");
+  const userId = user?.user_id;
 
   // Fetch initial memory on mount from live DynamoDB endpoint proxy
   useEffect(() => {
@@ -108,11 +109,23 @@ export function ProjectLelantosShell() {
         guardrail_enabled: guardrailEnabled,
       };
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const token = await getAccessToken();
+      console.log(
+        "Cognito token format:",
+        token ? `${token.split(".").length} parts, ${token.length} chars` : "NO TOKEN"
+      );
+if (!token) {
+  throw new Error("You are not authenticated.");
+}
+
+const response = await fetch("/api/chat", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify(payload),
+});
 
       if (!response.ok) {
         throw new Error(`API error: ${response.statusText}`);

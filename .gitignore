@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+frontend/node_modules/
 .pnpm-store/
 .bun/
 
@@ -12,10 +13,24 @@ build/
 .tanstack/
 .nitro/
 *.local
+.vite/
+frontend/.vite/
+frontend/dist/
+frontend/build/
 
-# Wrangler / Cloudflare
-.wrangler/
-.dev.vars
+# Package & Archive artifacts
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Lambda & AWS deployment packages
+lambda-package/
+lambda-package-*/
+lambda-package-linux/
+.aws-sam/
+.serverless/
+cdk.out/
 
 # Python
 __pycache__/
@@ -24,6 +39,8 @@ __pycache__/
 *.so
 .Python
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 env/
 venv/
 ENV/
@@ -31,6 +48,12 @@ ENV/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Testing & Coverage
+coverage/
+.coverage
+.coverage.*
+htmlcov/
 
 # Environment variables, credentials & secrets
 .env
@@ -41,14 +64,28 @@ ENV/
 *.cert
 credentials.json
 aws_credentials*
-*secret*
+secrets/
+*.secret
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 *.log
+
+# Temporary & cache files
+*.tmp
+*~
+*.bak
+*.sw?
+.cache/
+.eslintcache
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
 
 # Editor & OS files
 .idea/
@@ -58,7 +95,6 @@ pnpm-debug.log*
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
 .DS_Store
 Thumbs.db
 

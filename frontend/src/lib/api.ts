@@ -12,14 +12,14 @@ import type {
   Conversation,
   Message,
 } from "./types";
-
-const API_BASE = "/api";
+import { getCognitoIdToken } from "./auth-context";
+const API_BASE = "https://cpu895hqal.execute-api.us-east-1.amazonaws.com";
 
 async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = localStorage.getItem("lelantos_token");
+  const token = await getCognitoIdToken();
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

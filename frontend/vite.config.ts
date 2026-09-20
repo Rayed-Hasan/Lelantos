@@ -11,6 +11,9 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    define: {
+      global: "globalThis",
+    },
     server: {
       proxy: {
         "/api": {

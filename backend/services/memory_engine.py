@@ -5,14 +5,18 @@ Master Plan sections 7, 13, 14, 18, 22.
 Uses DynamoDB single-table design:
   PK = USER#<user_id>
   SK = MEMORY#<memory_id>
+
+Isolation: every read/write is keyed on PK = USER#<user_id>, and _pk() refuses
+an empty user_id so a bug upstream can never collapse users into "USER#".
 """
 
 import boto3
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from boto3.dynamodb.conditions import Key, Attr
+from botocore.exceptions import ClientError
 
 from backend.models.memory import (
     MemoryObject, MemoryStatus, MemoryType, MemorySource,
@@ -37,17 +41,63 @@ def _get_table():
     return _table
 
 
+# ─── HELPERS ───────────────────────────────────────────────────────────────────
+
+def _now() -> str:
+    """UTC timestamp in the same format as before (ISO 8601 with trailing Z)."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _pk(user_id: str) -> str:
+    """Partition key for a user. Refuses empty IDs to protect isolation."""
+    if not user_id or not isinstance(user_id, str):
+        raise ValueError("user_id is required")
+    return f"USER#{user_id}"
+
+
+def _query_all(table, **kwargs) -> list[dict]:
+    """Run a query and follow pagination so results are never silently truncated."""
+    items: list[dict] = []
+    while True:
+        response = table.query(**kwargs)
+        items.extend(response.get("Items", []))
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        kwargs["ExclusiveStartKey"] = last_key
+    return items
+
+
+def _item_to_memory(item: dict) -> MemoryObject:
+    """Convert a DynamoDB item to a MemoryObject."""
+    return MemoryObject(
+        memory_id=item.get("memory_id", ""),
+        user_id=item.get("user_id", ""),
+        type=MemoryType(item.get("type", "FACT")),
+        key=item.get("key", "other"),
+        value=item.get("value", ""),
+        confidence=float(item.get("confidence", "0.5")),
+        status=MemoryStatus(item.get("status", "ACTIVE")),
+        source=MemorySource(**item["source"]) if item.get("source") else None,
+        created_at=item.get("created_at", ""),
+        updated_at=item.get("updated_at", ""),
+        expires_at=item.get("expires_at"),
+        version=int(item.get("version", 1)),
+    )
+
+
 # ─── CREATE ────────────────────────────────────────────────────────────────────
 
 def create_memory(memory: MemoryObject) -> MemoryObject:
     """Create a new memory item in DynamoDB."""
     table = _get_table()
+    pk = _pk(memory.user_id)
 
     # Normalize the key against the fixed vocabulary
     memory.key = normalize_key(memory.type.value, memory.key)
 
     item = {
-        "PK": f"USER#{memory.user_id}",
+        "PK": pk,
         "SK": f"MEMORY#{memory.memory_id}",
         "entity_type": "MEMORY",
         "memory_id": memory.memory_id,
@@ -79,11 +129,11 @@ def create_memory(memory: MemoryObject) -> MemoryObject:
 # ─── READ ──────────────────────────────────────────────────────────────────────
 
 def get_memory(user_id: str, memory_id: str) -> Optional[MemoryObject]:
-    """Get a single memory by ID."""
+    """Get a single memory by ID (scoped to the user)."""
     table = _get_table()
     try:
         response = table.get_item(
-            Key={"PK": f"USER#{user_id}", "SK": f"MEMORY#{memory_id}"}
+            Key={"PK": _pk(user_id), "SK": f"MEMORY#{memory_id}"}
         )
         item = response.get("Item")
         if not item:
@@ -102,10 +152,11 @@ def list_memories(
     """List all memories for a user, optionally filtered by status and type."""
     table = _get_table()
     try:
-        response = table.query(
-            KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("MEMORY#")
+        items = _query_all(
+            table,
+            KeyConditionExpression=Key("PK").eq(_pk(user_id))
+            & Key("SK").begins_with("MEMORY#"),
         )
-        items = response.get("Items", [])
         memories = [_item_to_memory(item) for item in items]
 
         # Filter in code (section 22: intentional at hackathon scale)
@@ -152,9 +203,8 @@ def update_memory(
     expr_values = {}
     expr_names = {}
 
-    now = datetime.utcnow().isoformat() + "Z"
     update_parts.append("#updated_at = :updated_at")
-    expr_values[":updated_at"] = now
+    expr_values[":updated_at"] = _now()
     expr_names["#updated_at"] = "updated_at"
 
     if value is not None:
@@ -174,13 +224,20 @@ def update_memory(
 
     try:
         table.update_item(
-            Key={"PK": f"USER#{user_id}", "SK": f"MEMORY#{memory_id}"},
+            Key={"PK": _pk(user_id), "SK": f"MEMORY#{memory_id}"},
             UpdateExpression="SET " + ", ".join(update_parts),
             ExpressionAttributeValues=expr_values,
             ExpressionAttributeNames=expr_names,
+            # Never create a ghost item if the memory vanished since get_memory().
+            ConditionExpression=Attr("PK").exists(),
         )
         # Refresh and return
         return get_memory(user_id, memory_id)
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return None
+        logger.error(f"Failed to update memory {memory_id}: {e}")
+        raise
     except Exception as e:
         logger.error(f"Failed to update memory {memory_id}: {e}")
         raise
@@ -204,8 +261,13 @@ def delete_memory(user_id: str, memory_id: str) -> bool:
 
 
 def delete_all_memories(user_id: str) -> int:
-    """Soft-delete all memories for a user."""
-    memories = get_active_memories(user_id)
+    """
+    Soft-delete ALL of a user's memories (ACTIVE, REPLACED, etc.), not just
+    the active ones, so old versions don't linger after "delete all".
+    """
+    memories = [
+        m for m in list_memories(user_id) if m.status != MemoryStatus.DELETED
+    ]
     count = 0
     for memory in memories:
         if delete_memory(user_id, memory.memory_id):
@@ -261,7 +323,7 @@ def create_timeline_event(event: TimelineEvent):
     """Store a timeline event in DynamoDB."""
     table = _get_table()
     item = {
-        "PK": f"USER#{event.user_id}",
+        "PK": _pk(event.user_id),
         "SK": f"TIMELINE#{event.timestamp}#{event.event_id}",
         "entity_type": "TIMELINE",
         "event_id": event.event_id,
@@ -288,7 +350,8 @@ def get_timeline(user_id: str, limit: int = 50) -> list[dict]:
     table = _get_table()
     try:
         response = table.query(
-            KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("TIMELINE#"),
+            KeyConditionExpression=Key("PK").eq(_pk(user_id))
+            & Key("SK").begins_with("TIMELINE#"),
             ScanIndexForward=False,
             Limit=limit,
         )
@@ -327,23 +390,3 @@ def get_user_profile(user_id: str) -> dict:
             m.model_dump() for m in sorted(active, key=lambda x: x.updated_at, reverse=True)[:5]
         ],
     }
-
-
-# ─── HELPERS ───────────────────────────────────────────────────────────────────
-
-def _item_to_memory(item: dict) -> MemoryObject:
-    """Convert a DynamoDB item to a MemoryObject."""
-    return MemoryObject(
-        memory_id=item.get("memory_id", ""),
-        user_id=item.get("user_id", ""),
-        type=MemoryType(item.get("type", "FACT")),
-        key=item.get("key", "other"),
-        value=item.get("value", ""),
-        confidence=float(item.get("confidence", "0.5")),
-        status=MemoryStatus(item.get("status", "ACTIVE")),
-        source=MemorySource(**item["source"]) if item.get("source") else None,
-        created_at=item.get("created_at", ""),
-        updated_at=item.get("updated_at", ""),
-        expires_at=item.get("expires_at"),
-        version=int(item.get("version", 1)),
-    )

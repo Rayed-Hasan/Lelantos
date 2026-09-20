@@ -3,8 +3,8 @@ Chat Route — POST /chat endpoint.
 Master Plan section 44: parallel Worker + Memory branches.
 
 Pipeline:
-1. Auth → get user
-2. Create/use conversation → store message
+1. Auth → get user (verified Cognito identity)
+2. Create/use conversation (ownership verified) → store message
 3. Parallel branches:
    - WORKER: Relevant retrieval → Context assembly → Bedrock → Response
    - MEMORY: Extraction → Conflict detection → Store
@@ -14,7 +14,8 @@ Pipeline:
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from backend.services.auth import get_current_user
 from backend.services.bedrock import invoke_llama
@@ -26,6 +27,7 @@ from backend.services.policy_engine import apply_policies
 from backend.services.conversation_manager import (
     create_conversation, store_message, get_recent_messages,
     update_conversation_title, get_conversation,
+    ConversationNotFoundError,
 )
 from backend.models.memory import MemorySource
 
@@ -34,14 +36,30 @@ router = APIRouter()
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
+MAX_MESSAGE_CHARS = 8000
+
+
+async def _resolve_conversation(user_id: str, conversation_id, message: str) -> str:
+    """
+    Return a conversation ID that belongs to this user.
+    A missing, unknown, or someone else's ID results in a NEW conversation
+    (the response returns the new ID, so the client switches to it).
+    """
+    if conversation_id:
+        conv = await run_in_threadpool(get_conversation, user_id, conversation_id)
+        if conv:
+            return conversation_id
+
+    new_conv = await run_in_threadpool(create_conversation, user_id, message[:50])
+    return new_conv.conversation_id
+
 
 @router.post("/chat")
-async def chat(request: Request):
+async def chat(request: Request, user: dict = Depends(get_current_user)):
     """
     Main chat pipeline (section 44).
     Worker and Memory branches run in parallel.
     """
-    user = get_current_user(request)
     user_id = user["user_id"]
 
     try:
@@ -49,27 +67,41 @@ async def chat(request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="Malformed JSON in request body")
 
-    message = body.get("message", "").strip()
-    conversation_id = body.get("conversation_id")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+
+    message = body.get("message", "")
+    if not isinstance(message, str):
+        raise HTTPException(status_code=400, detail="Message must be a string")
+    message = message.strip()
 
     if not message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
+    if len(message) > MAX_MESSAGE_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Message too long (max {MAX_MESSAGE_CHARS} characters)",
+        )
 
-    # Create or resume conversation
-    if not conversation_id:
-        conv = create_conversation(user_id, title=message[:50])
-        conversation_id = conv.conversation_id
-    else:
-        conv = get_conversation(user_id, conversation_id)
-        if not conv:
-            conv_record = create_conversation(user_id, title=message[:50])
-            conversation_id = conv_record.conversation_id
+    conversation_id = body.get("conversation_id")
+    if conversation_id is not None and not isinstance(conversation_id, str):
+        raise HTTPException(status_code=400, detail="Invalid conversation_id")
 
-    # Store user message
-    user_msg = store_message(conversation_id, "user", message)
+    # Create or resume conversation, store the user message, load history
+    try:
+        conversation_id = await _resolve_conversation(user_id, conversation_id, message)
+        user_msg = await run_in_threadpool(
+            store_message, user_id, conversation_id, "user", message
+        )
+        recent_messages = await run_in_threadpool(
+            get_recent_messages, user_id, conversation_id, 10
+        )
+    except ConversationNotFoundError:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    except Exception as e:
+        logger.error(f"Failed to prepare conversation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-    # Get chat history for context
-    recent_messages = get_recent_messages(conversation_id, limit=10)
     history_context = ""
     for msg in recent_messages[:-1]:
         role = msg.get("role", "user")
@@ -77,7 +109,7 @@ async def chat(request: Request):
         history_context += f"{role.capitalize()}: {content}\n"
 
     # ── Run Worker and Memory branches in parallel ──────────────────
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     worker_future = loop.run_in_executor(
         _executor, _worker_branch, user_id, message, history_context,
@@ -85,12 +117,15 @@ async def chat(request: Request):
     memory_future = loop.run_in_executor(
         _executor, _memory_branch, user_id, message, conversation_id, user_msg.message_id,
     )
+    # Retrieve the memory branch's exception if we bail out early, so Python
+    # doesn't log "exception was never retrieved".
+    memory_future.add_done_callback(lambda f: f.cancelled() or f.exception())
 
     # Wait for worker response (user-facing, latency-critical)
     try:
         worker_result = await worker_future
     except Exception as e:
-        logger.error(f"Worker branch failed: {e}")
+        logger.error(f"Worker branch failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=503,
             detail="AI service temporarily unavailable. Please try again.",
@@ -109,12 +144,18 @@ async def chat(request: Request):
     except Exception as e:
         logger.warning(f"Memory branch failed (non-fatal): {e}")
 
-    # Store assistant response
-    store_message(conversation_id, "assistant", worker_response)
-
-    # Auto-title the conversation after first exchange
-    if len(recent_messages) <= 1:
-        update_conversation_title(user_id, conversation_id, message[:60])
+    # Store assistant response (non-fatal: the user already has their answer)
+    try:
+        await run_in_threadpool(
+            store_message, user_id, conversation_id, "assistant", worker_response
+        )
+        # Auto-title the conversation after first exchange
+        if len(recent_messages) <= 1:
+            await run_in_threadpool(
+                update_conversation_title, user_id, conversation_id, message[:60]
+            )
+    except Exception as e:
+        logger.error(f"Failed to store assistant message: {e}", exc_info=True)
 
     return {
         "response": worker_response,
@@ -131,7 +172,7 @@ def _worker_branch(user_id: str, message: str, history_context: str) -> dict:
     WORKER BRANCH: Retrieve relevant memories → assemble context → call Bedrock.
     Returns dict with response text and metadata.
     """
-    # Retrieve relevant memories (not all)
+    # Retrieve relevant memories (not all) — scoped to this user
     relevant_memories = retrieve_relevant_memories(user_id, message)
 
     # Apply policies
